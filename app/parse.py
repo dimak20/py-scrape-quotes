@@ -59,7 +59,7 @@ async def write_products_to_csv(path: str, quotes: list[Quote]) -> None:
         writer.writerows([astuple(quote) for quote in quotes])
 
 
-async def retrieve_quotes(output_csv_path: str):
+async def retrieve_quotes(output_csv_path: str) -> None:
     quotes = await get_quotes()
     await write_products_to_csv(output_csv_path, quotes)
 
