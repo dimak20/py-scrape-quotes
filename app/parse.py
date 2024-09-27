@@ -1,4 +1,5 @@
 import csv
+import time
 from dataclasses import dataclass, fields, astuple
 from typing import List
 from urllib.parse import urljoin
@@ -61,4 +62,8 @@ def main(output_csv_path: str) -> None:
 
 
 if __name__ == "__main__":
+    start_time = time.perf_counter()
     main("quotes.csv")
+    end_time = time.perf_counter()
+
+    print("Elapsed:", end_time - start_time)
