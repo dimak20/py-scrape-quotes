@@ -1,10 +1,10 @@
-import asyncio
 import csv
+import time
 from dataclasses import dataclass, fields, astuple
 from typing import List
 from urllib.parse import urljoin
 
-import httpx
+import requests
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://quotes.toscrape.com/"
@@ -20,7 +20,7 @@ class Quote:
 QUOTE_FIELDS = [field.name for field in fields(Quote)]
 
 
-async def parse_single_quote(quote: BeautifulSoup) -> Quote:
+def parse_single_quote(quote: BeautifulSoup) -> Quote:
     return Quote(
         text=quote.select_one(".text").text,
         author=quote.select_one(".author").text,
@@ -28,41 +28,42 @@ async def parse_single_quote(quote: BeautifulSoup) -> Quote:
     )
 
 
-async def get_single_page(page: BeautifulSoup) -> List[Quote]:
+def get_single_page(page: BeautifulSoup) -> List[Quote]:
     quotes = page.select(".quote")
-    return [await parse_single_quote(quote) for quote in quotes]
+    return [parse_single_quote(quote) for quote in quotes]
 
 
-async def get_quotes() -> List[Quote]:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(BASE_URL)
-        base_page = response.content
-        first_page = BeautifulSoup(base_page, "html.parser")
-        all_pages = await get_single_page(first_page)
-        next_page = first_page.select_one(".next > a")
+def get_quotes() -> List[Quote]:
+    base_page = requests.get(BASE_URL).content
+    first_page = BeautifulSoup(base_page, "html.parser")
+    all_pages = get_single_page(first_page)
+    next_page = first_page.select_one(".next > a")
 
-        while next_page:
-            new_url = urljoin(BASE_URL, next_page["href"])
-            response = await client.get(new_url)
-            page_content = response.content
-            parsed_page = BeautifulSoup(page_content, "html.parser")
-            all_pages.extend(await get_single_page(parsed_page))
-            next_page = parsed_page.select_one(".next > a")
+    while next_page:
+        new_url = urljoin(BASE_URL, next_page["href"])
+        page_content = requests.get(new_url).content
+        parsed_page = BeautifulSoup(page_content, "html.parser")
+        all_pages.extend(get_single_page(parsed_page))
+        next_page = parsed_page.select_one(".next > a")
 
     return all_pages
 
 
-async def write_products_to_csv(path: str, quotes: list[Quote]) -> None:
+def write_products_to_csv(path: str, quotes: list[Quote]) -> None:
     with open(path, "w", encoding="utf-8", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(QUOTE_FIELDS)
         writer.writerows([astuple(quote) for quote in quotes])
 
 
-async def main(output_csv_path: str) -> None:
-    quotes = await get_quotes()
-    await write_products_to_csv(output_csv_path, quotes)
+def main(output_csv_path: str) -> None:
+    quotes = get_quotes()
+    write_products_to_csv(output_csv_path, quotes)
 
 
 if __name__ == "__main__":
-    asyncio.run(main("quotes.csv"))
+    start_time = time.perf_counter()
+    main("quotes.csv")
+    end_time = time.perf_counter()
+
+    print("Elapsed:", end_time - start_time)
